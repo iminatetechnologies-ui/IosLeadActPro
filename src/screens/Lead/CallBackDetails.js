@@ -4,7 +4,7 @@ import CustomDropdown from './../../components/CustomDropDown';
 import CustomButton from './../../components/CustomButton';
 import TextareaWithIcon from './../../components/TextArea';
 import DateTimePickerComponent from './../../components/DateTimeSelector';
-// import AudioRecorder from '../Audio/AudioRecorder'; // COMMENTED
+import AudioRecorder from '../Audio/AudioRecorder';
 import {_post} from '../../api/apiClient';
 
 const CallBackDetails = ({navigation, route}) => {
@@ -14,7 +14,7 @@ const CallBackDetails = ({navigation, route}) => {
   const [callBackReasonNotes, setCallBackReasonNotes] = useState('');
   const [callBackReason, setCallBackReason] = useState('');
   const [callBackTime, setCallBackTime] = useState('');
-  // const [recordedFile, setRecordedFile] = useState(null); // COMMENTED
+  const [recordedFile, setRecordedFile] = useState(null);
   const [errors, setErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState('');
 
@@ -31,10 +31,9 @@ const CallBackDetails = ({navigation, route}) => {
     setErrors(prev => ({...prev, callBackTime: null}));
   };
 
-  // COMMENTED - Audio recording handler
-  // const handleRecordingComplete = audioFile => {
-  //   setRecordedFile(audioFile);
-  // };
+  const handleRecordingComplete = audioFile => {
+    setRecordedFile(audioFile);
+  };
 
   const handleSubmit = async () => {
     let newErrors = {};
@@ -47,9 +46,9 @@ const CallBackDetails = ({navigation, route}) => {
     if (!callBackTime)
       newErrors.callBackTime = 'Please select next follow-up date and time';
 
-    // UPDATED VALIDATION → Only notes required (audio removed)
-    if (!callBackReasonNotes.trim()) {
-      newErrors.main = 'Please add Notes';
+    // Notes OR Audio required
+    if (!callBackReasonNotes.trim() && !recordedFile) {
+      newErrors.main = 'Please add Notes or record Audio (one is required)';
     }
 
     setErrors(newErrors);
@@ -60,22 +59,21 @@ const CallBackDetails = ({navigation, route}) => {
     formData.append('notes', callBackReasonNotes);
     formData.append('followup_on', callBackTime);
 
-    // COMMENTED - Audio file handling removed
-    // if (recordedFile) {
-    //   formData.append('audio_file', {
-    //     uri: recordedFile.startsWith('file://')
-    //       ? recordedFile
-    //       : `file://${recordedFile}`,
-    //     type: 'audio/wav',
-    //     name: `callback_audio_${Date.now()}.wav`,
-    //   });
-    // }
+    if (recordedFile) {
+      formData.append('audio_file', {
+        uri: recordedFile.startsWith('file://')
+          ? recordedFile
+          : `file://${recordedFile}`,
+        type: 'audio/wav',
+        name: `callback_audio_${Date.now()}.wav`,
+      });
+    }
 
     console.log('=== FORM DATA SENT ===');
     console.log('substatus_id:', Number(callBackReason));
     console.log('notes:', callBackReasonNotes);
     console.log('followup_on:', callBackTime);
-    // console.log('audio_file:', recordedFile); // COMMENTED
+    console.log('audio_file:', recordedFile);
 
     setIsLoading(true);
 
@@ -148,9 +146,10 @@ const CallBackDetails = ({navigation, route}) => {
 
       {errors.main && <Text style={styles.errorText}>{errors.main}</Text>}
 
-      {/* COMMENTED - AUDIO NOTE SECTION */}
-      {/* <Text style={styles.title}>AUDIO NOTE (OPTIONAL)</Text>
-      <AudioRecorder onRecordingComplete={handleRecordingComplete} /> */}
+      {/* AUDIO NOTE SECTION */}
+      <Text style={styles.title}>AUDIO NOTE (OPTIONAL)</Text>
+
+      <AudioRecorder onRecordingComplete={handleRecordingComplete} />
 
       {successMessage && (
         <Text style={styles.successText}>{successMessage}</Text>

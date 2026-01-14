@@ -3,7 +3,7 @@ import React, {useState} from 'react';
 import CustomDropdown from './../../components/CustomDropDown';
 import TextareaWithIcon from './../../components/TextArea';
 import CustomButton from './../../components/CustomButton';
-// import AudioRecorder from '../Audio/AudioRecorder'; // Import the audio component - COMMENTED
+import AudioRecorder from '../Audio/AudioRecorder'; // Import the audio component
 import {_post} from '../../api/apiClient';
 
 const NotInterested = ({navigation, route}) => {
@@ -11,7 +11,7 @@ const NotInterested = ({navigation, route}) => {
   const [isLoading, setIsLoading] = useState(false);
   const [notes, setNotes] = useState('');
   const [subStatus, setStatusId] = useState('');
-  // const [recordedFile, setRecordedFile] = useState(null); // Audio file state - COMMENTED
+  const [recordedFile, setRecordedFile] = useState(null); // Audio file state
 
   // Error states
   const [errors, setErrors] = useState({});
@@ -29,18 +29,17 @@ const NotInterested = ({navigation, route}) => {
     {label: 'Loan Issue', value: 20},
   ];
 
-  // COMMENTED - Audio recording handler
-  // const handleRecordingComplete = audioFile => {
-  //   setRecordedFile(audioFile);
-  // };
+  const handleRecordingComplete = audioFile => {
+    setRecordedFile(audioFile);
+  };
 
   const handleSubmit = async () => {
     let newErrors = {};
     setSuccessMessage('');
 
-    // Validation: only notes required (audio removed)
-    if (!notes.trim()) {
-      newErrors.notes = 'Please enter notes';
+    // Validation: at least one required (notes OR audio)
+    if (!notes.trim() && !recordedFile) {
+      newErrors.notes = 'Please enter notes or record an audio';
     }
 
     if (!subStatus) {
@@ -53,21 +52,21 @@ const NotInterested = ({navigation, route}) => {
       return;
     }
 
-    // Create FormData - audio part removed
+    // Create FormData
     const formData = new FormData();
     formData.append('substatus_id', subStatus);
     formData.append('notes', notes);
 
-    // COMMENTED - Audio file handling removed
-    // if (recordedFile) {
-    //   formData.append('audio_file', {
-    //     uri: recordedFile.startsWith('file://')
-    //       ? recordedFile
-    //       : `file://${recordedFile}`,
-    //     type: 'audio/wav',
-    //     name: `not_interested_audio_${Date.now()}.wav`,
-    //   });
-    // }
+    // Add audio only if exists
+    if (recordedFile) {
+      formData.append('audio_file', {
+        uri: recordedFile.startsWith('file://')
+          ? recordedFile
+          : `file://${recordedFile}`,
+        type: 'audio/wav',
+        name: `not_interested_audio_${Date.now()}.wav`,
+      });
+    }
 
     setIsLoading(true);
 
@@ -97,8 +96,7 @@ const NotInterested = ({navigation, route}) => {
         const errs = error.response.data.errors;
         if (errs.substatus_id) setErrors({api: errs.substatus_id[0]});
         else if (errs.notes) setErrors({api: errs.notes[0]});
-        // COMMENTED - Audio error handling removed
-        // else if (errs.audio_file) setErrors({api: errs.audio_file[0]});
+        else if (errs.audio_file) setErrors({api: errs.audio_file[0]});
         else setErrors({api: 'Validation failed'});
       } else {
         setErrors({api: 'Something went wrong, please try again'});
@@ -138,9 +136,9 @@ const NotInterested = ({navigation, route}) => {
       />
       {errors.notes && <Text style={styles.errorText}>{errors.notes}</Text>}
 
-      {/* COMMENTED - Audio Recording Section */}
-      {/* <Text style={styles.title}>AUDIO NOTE (OPTIONAL)</Text>
-      <AudioRecorder onRecordingComplete={handleRecordingComplete} /> */}
+      {/* Audio Recording Section */}
+      <Text style={styles.title}>AUDIO NOTE (OPTIONAL)</Text>
+      <AudioRecorder onRecordingComplete={handleRecordingComplete} />
 
       {/* Success Message */}
       {successMessage && (

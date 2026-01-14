@@ -5,7 +5,7 @@ import CustomButton from './../../components/CustomButton';
 import TextareaWithIcon from './../../components/TextArea';
 import DateTimePickerComponent from './../../components/DateTimeSelector';
 import MultiSelectDropdown from './../../components/MultiSelectDropdown';
-// import AudioRecorder from '../Audio/AudioRecorder'; // COMMENTED
+import AudioRecorder from '../Audio/AudioRecorder'; // ✅ SAME as LostDetails
 import {_post, _get} from '../../api/apiClient';
 import {
   widthPercentageToDP as wp,
@@ -24,7 +24,7 @@ const CreateTask = ({navigation, route}) => {
   const [projectList, setProjectList] = useState([]);
   const [selectedProjects, setSelectedProjects] = useState([]);
 
-  // const [recordedFile, setRecordedFile] = useState(null); // ✅ audio state - COMMENTED
+  const [recordedFile, setRecordedFile] = useState(null); // ✅ audio state
 
   const [errors, setErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState('');
@@ -94,11 +94,11 @@ const CreateTask = ({navigation, route}) => {
     if (!followUpTime) newErrors.followUpTime = 'Please select date & time';
 
     // ------------------------------------
-    // 🔥 UPDATED VALIDATION
-    // Only notes required (audio removed)
+    // 🔥 NEW IMPORTANT VALIDATION
+    // Notes OR Audio → koi ek compulsory
     // ------------------------------------
-    if (!notes.trim()) {
-      newErrors.main = 'Please add Notes';
+    if (!notes.trim() && !recordedFile) {
+      newErrors.main = 'Please add Notes or record Audio (one is required)';
     }
 
     setErrors(newErrors);
@@ -121,16 +121,16 @@ const CreateTask = ({navigation, route}) => {
       });
     }
 
-    // COMMENTED - AUDIO handling removed
-    // if (recordedFile) {
-    //   formData.append('audio_file', {
-    //     uri: recordedFile.startsWith('file://')
-    //       ? recordedFile
-    //       : `file://${recordedFile}`,
-    //     type: 'audio/wav',
-    //     name: `task_audio_${Date.now()}.wav`,
-    //   });
-    // }
+    // AUDIO
+    if (recordedFile) {
+      formData.append('audio_file', {
+        uri: recordedFile.startsWith('file://')
+          ? recordedFile
+          : `file://${recordedFile}`,
+        type: 'audio/wav',
+        name: `task_audio_${Date.now()}.wav`,
+      });
+    }
 
     setIsLoading(true);
     try {
@@ -210,9 +210,9 @@ const CreateTask = ({navigation, route}) => {
         />
         {errors.main && <Text style={styles.errorText}>{errors.main}</Text>}
 
-        {/* COMMENTED - Same Audio Section as LostDetails */}
-        {/* <Text style={styles.title}>AUDIO NOTE (OPTIONAL)</Text>
-        <AudioRecorder onRecordingComplete={file => setRecordedFile(file)} /> */}
+        {/* ✅ Same Audio Section as LostDetails */}
+        <Text style={styles.title}>AUDIO NOTE (OPTIONAL)</Text>
+        <AudioRecorder onRecordingComplete={file => setRecordedFile(file)} />
 
         {successMessage && (
           <Text style={styles.successText}>{successMessage}</Text>

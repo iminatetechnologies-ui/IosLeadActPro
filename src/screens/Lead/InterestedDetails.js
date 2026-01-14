@@ -16,7 +16,7 @@ import CustomButton from './../../components/CustomButton';
 import {_get, _post} from '../../api/apiClient';
 import DateTimePickerComponent from './../../components/DateTimeSelector';
 import TextareaWithIcon from './../../components/TextArea';
-// import AudioRecorder from '../Audio/AudioRecorder'; // COMMENTED
+import AudioRecorder from '../Audio/AudioRecorder'; // UNCOMMENTED
 import {useLocationService} from '../../hooks/useLocationService';
 import {useResources} from '../../hooks/useResources';
 
@@ -31,7 +31,7 @@ const InterestedDetails = ({navigation, route}) => {
   const [leadStatus, setLeadStatus] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
-  // const [recordedFile, setRecordedFile] = useState(null); // COMMENTED
+  const [recordedFile, setRecordedFile] = useState(null); // UNCOMMENTED
 
   // Form states with auto-fill from route params
   const [fullName, setFullName] = useState(item?.name || item?.fullname || '');
@@ -121,11 +121,11 @@ const InterestedDetails = ({navigation, route}) => {
     {label: 'Site visit', value: 7},
   ];
 
-  // COMMENTED - Audio recording handler
-  // const handleRecordingComplete = audioFile => {
-  //   console.log('🎵 Audio recorded:', audioFile);
-  //   setRecordedFile(audioFile);
-  // };
+  // UNCOMMENTED - Audio recording handler
+  const handleRecordingComplete = audioFile => {
+    console.log('🎵 Audio recorded:', audioFile);
+    setRecordedFile(audioFile);
+  };
 
   // ✅ Auto-selection logic for static dropdowns
   useEffect(() => {
@@ -206,9 +206,9 @@ const InterestedDetails = ({navigation, route}) => {
   const handleSubmit = async () => {
     let newErrors = {};
 
-    // 🔥 UPDATED VALIDATION → Only notes required (audio removed)
-    if (!notes.trim()) {
-      newErrors.main = 'Please add Notes';
+    // 🔥 UPDATED VALIDATION → Notes are no longer required since audio is an alternative
+    if (!notes.trim() && !recordedFile) {
+      newErrors.main = 'Please add Notes or record an Audio note';
     }
 
     // Existing validation function
@@ -242,18 +242,18 @@ const InterestedDetails = ({navigation, route}) => {
     formData.append('city', selectedCity?.value || ''); // City ID
     formData.append('locality', selectedLocality?.value || ''); // Locality ID
 
-    // COMMENTED - Audio file handling removed
-    // if (recordedFile) {
-    //   console.log('📁 Adding audio file to FormData:', recordedFile);
+    // UNCOMMENTED - Audio file handling
+    if (recordedFile) {
+      console.log('📁 Adding audio file to FormData:', recordedFile);
 
-    //   formData.append('audio_file', {
-    //     uri: recordedFile.startsWith('file://')
-    //       ? recordedFile
-    //       : `file://${recordedFile}`,
-    //     type: 'audio/wav',
-    //     name: `interested_audio_${Date.now()}.wav`,
-    //   });
-    // }
+      formData.append('audio_file', {
+        uri: recordedFile.startsWith('file://')
+          ? recordedFile
+          : `file://${recordedFile}`,
+        type: 'audio/wav',
+        name: `interested_audio_${Date.now()}.wav`,
+      });
+    }
 
     setIsLoading(true);
 
@@ -272,7 +272,7 @@ const InterestedDetails = ({navigation, route}) => {
           ToastAndroid.SHORT,
         );
         setErrors({});
-        // setRecordedFile(null); // COMMENTED
+        setRecordedFile(null); // UNCOMMENTED
         setTimeout(() => navigation.goBack(), 1000);
       } else {
         setErrors({api: response.data?.message || 'Update failed'});
@@ -286,11 +286,10 @@ const InterestedDetails = ({navigation, route}) => {
         if (error.response.status === 422) {
           const errs = error.response.data.errors;
 
-          // COMMENTED - Audio error handling removed
-          // if (errs.audio_file) {
-          //   setErrors({api: `Audio error: ${errs.audio_file[0]}`});
-          // } else if (errs.substatus_id) {
-          if (errs.substatus_id) {
+          // UNCOMMENTED - Audio error handling
+          if (errs.audio_file) {
+            setErrors({api: `Audio error: ${errs.audio_file[0]}`});
+          } else if (errs.substatus_id) {
             setErrors({api: errs.substatus_id[0]});
           } else if (errs.notes) {
             setErrors({api: errs.notes[0]});
@@ -480,12 +479,12 @@ const InterestedDetails = ({navigation, route}) => {
         />
         {errors.main && <Text style={styles.errorText}>{errors.main}</Text>}
 
-        {/* COMMENTED - Audio Recording Section */}
-        {/* {renderFormField('AUDIO NOTE (OPTIONAL)')}
-        <AudioRecorder onRecordingComplete={handleRecordingComplete} /> */}
+        {/* UNCOMMENTED - Audio Recording Section */}
+        {renderFormField('AUDIO NOTE (OPTIONAL)')}
+        <AudioRecorder onRecordingComplete={handleRecordingComplete} />
 
-        {/* COMMENTED - Show recorded file info */}
-        {/* {recordedFile && (
+        {/* UNCOMMENTED - Show recorded file info */}
+        {recordedFile && (
           <View style={styles.audioInfoContainer}>
             <Text style={styles.audioInfoText}>
               ✅ Audio recorded successfully
@@ -494,7 +493,7 @@ const InterestedDetails = ({navigation, route}) => {
               Audio note will be attached with this lead
             </Text>
           </View>
-        )} */}
+        )}
       </ScrollView>
 
       <View style={styles.footerButton}>
@@ -559,28 +558,28 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#f5c6cb',
   },
-  // COMMENTED - Audio info styles (kept for reference but not used)
-  // audioInfoContainer: {
-  //   marginHorizontal: 20,
-  //   marginTop: 8,
-  //   marginBottom: 8,
-  //   padding: 12,
-  //   backgroundColor: '#eafaf1',
-  //   borderRadius: 8,
-  //   borderWidth: 1,
-  //   borderColor: '#c3e6cb',
-  // },
-  // audioInfoText: {
-  //   color: '#27ae60',
-  //   fontSize: 14,
-  //   fontWeight: '500',
-  // },
-  // audioInfoSubText: {
-  //   color: '#27ae60',
-  //   fontSize: 12,
-  //   marginTop: 4,
-  //   fontStyle: 'italic',
-  // },
+  // UNCOMMENTED - Audio info styles
+  audioInfoContainer: {
+    marginHorizontal: 20,
+    marginTop: 8,
+    marginBottom: 8,
+    padding: 12,
+    backgroundColor: '#eafaf1',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#c3e6cb',
+  },
+  audioInfoText: {
+    color: '#27ae60',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  audioInfoSubText: {
+    color: '#27ae60',
+    fontSize: 12,
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
 });
 
 export default InterestedDetails;

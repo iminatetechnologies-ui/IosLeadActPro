@@ -12,7 +12,7 @@ import CustomTextInput from '../../components/CustomInput';
 import CustomButton from '../../components/CustomButton';
 import {_post} from '../../api/apiClient';
 import {useRoute} from '@react-navigation/native';
-// import AudioRecorder from '../Audio/AudioRecorder'; // COMMENTED
+import AudioRecorder from '../Audio/AudioRecorder'; // COMMENTED
 
 import {
   widthPercentageToDP as wp,
@@ -25,7 +25,7 @@ import {usePropertyService} from '../../hooks/usePropertyService';
 
 const AddLead = ({navigation}) => {
   const route = useRoute();
-  // const [recordedFile, setRecordedFile] = useState(null); // audio file state - COMMENTED
+  const [recordedFile, setRecordedFile] = useState(null); // audio file state - COMMENTED
 
   // STATE / CITY / LOCALITY SERVICE
   const {states, cities, localities, loading, loadCities, loadLocalities} =
@@ -146,7 +146,7 @@ const AddLead = ({navigation}) => {
 
     setErrors({});
     setSuccessMessage('');
-    // setRecordedFile(null); // COMMENTED
+    setRecordedFile(null); // COMMENTED
   };
 
   // RESET FORM WHEN COMPONENT MOUNTS OR ROUTE PARAMS CHANGE
@@ -198,15 +198,15 @@ const AddLead = ({navigation}) => {
     // ----------------------------------------
     // 🔥 COMMENTED - AUDIO FILE ADD (IF RECORDED)
     // ----------------------------------------
-    // if (recordedFile) {
-    //   formData.append('audio_file', {
-    //     uri: recordedFile.startsWith('file://')
-    //       ? recordedFile
-    //       : `file://${recordedFile}`,
-    //     type: 'audio/wav',
-    //     name: `lead_audio_${Date.now()}.wav`,
-    //   });
-    // }
+    if (recordedFile) {
+      formData.append('audio_file', {
+        uri: recordedFile.startsWith('file://')
+          ? recordedFile
+          : `file://${recordedFile}`,
+        type: 'audio/wav',
+        name: `lead_audio_${Date.now()}.wav`,
+      });
+    }
 
     try {
       // console.log('-----------', formData);
@@ -420,8 +420,8 @@ const AddLead = ({navigation}) => {
         />
 
         {/* COMMENTED - Audio Section */}
-        {/* <Text style={styles.title}>AUDIO NOTE (OPTIONAL)</Text>
-        <AudioRecorder onRecordingComplete={file => setRecordedFile(file)} /> */}
+        <Text style={styles.title}>AUDIO NOTE (OPTIONAL)</Text>
+        <AudioRecorder onRecordingComplete={file => setRecordedFile(file)} />
 
         {successMessage !== '' && (
           <Text style={styles.successText}>{successMessage}</Text>

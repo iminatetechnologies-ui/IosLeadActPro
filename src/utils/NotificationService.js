@@ -136,154 +136,161 @@
 // };
 
 
+import {Platform} from 'react-native';
+import {getApp} from '@react-native-firebase/app';
+import {
+  getMessaging,
+  getToken,
+  onMessage,
+  requestPermission,
+  AuthorizationStatus,
+  onNotificationOpenedApp,
+  getInitialNotification,
+} from '@react-native-firebase/messaging';
 
-// // import { getApp } from '@react-native-firebase/app';
-// // import {
-// //   getMessaging,
-// //   getToken,
-// //   onMessage,
-// //   requestPermission,
-// //   AuthorizationStatus,
-// //   onNotificationOpenedApp,
-// //   getInitialNotification,
-// // } from '@react-native-firebase/messaging';
+import notifee, {EventType} from '@notifee/react-native';
+import NavigationService from '../navigation/NavigationService';
+import {storeUserData} from '../components/EncryptedStorageUtil';
 
-// // import notifee, { AndroidImportance, EventType } from '@notifee/react-native';
-// // import NavigationService from '../navigation/NavigationService';
-// // import { storeUserData } from '../components/EncryptedStorageUtil';
+/* ----------------------------------
+  Utils
+----------------------------------- */
+const isIOS = Platform.OS === 'ios';
+const isSimulator = __DEV__ && Platform.OS === 'ios';
 
-// // // ------------------
-// // // 1. Notification permission
-// // // ------------------
-// // export async function requestUserPermission() {
-// //   try {
-// //     const app = getApp();
-// //     const messagingInstance = getMessaging(app);
+/* ----------------------------------
+  1. Request Notification Permission (iOS)
+----------------------------------- */
+export async function requestUserPermission() {
+  try {
+    const app = getApp();
+    const messaging = getMessaging(app);
 
-// //     const authStatus = await requestPermission(messagingInstance);
-// //     const enabled =
-// //       authStatus === AuthorizationStatus.AUTHORIZED ||
-// //       authStatus === AuthorizationStatus.PROVISIONAL;
+    const authStatus = await requestPermission(messaging);
+    const enabled =
+      authStatus === AuthorizationStatus.AUTHORIZED ||
+      authStatus === AuthorizationStatus.PROVISIONAL;
 
-// //     if (enabled) {
-// //       await getFcmToken();
-// //     }
-// //   } catch (error) {
-// //     console.error('❌ Error requesting user permission:', error);
-// //   }
-// // }
+    if (enabled) {
+      console.log('✅ iOS notification permission granted');
 
-// // // ------------------
-// // // 2. FCM token
-// // // ------------------
-// // const getFcmToken = async () => {
-// //   try {
-// //     const app = getApp();
-// //     const messagingInstance = getMessaging(app);
+      if (isSimulator) {
+        console.log(
+          '⚠️ iOS Simulator detected – skipping FCM token fetch (APNs not available)',
+        );
+      } else {
+        await getFcmToken();
+      }
+    } else {
+      console.log('❌ iOS notification permission denied');
+    }
+  } catch (error) {
+    console.error('❌ Permission error:', error);
+  }
+}
 
-// //     const fcmToken = await getToken(messagingInstance);
-// //     if (fcmToken) {
-// //       storeUserData('fcmToken', fcmToken);
-// //       console.log('✅ FCM Token:', fcmToken);
-// //     }
-// //   } catch (error) {
-// //     console.log('❌ Error getting FCM token:', error);
-// //   }
-// // };
+/* ----------------------------------
+  2. Get & store FCM Token
+----------------------------------- */
+const getFcmToken = async () => {
+  try {
+    if (isSimulator) {
+      console.log('⚠️ Skipped FCM token on iOS Simulator');
+      return;
+    }
 
-// // // ------------------
-// // // 3. Notification channel
-// // // ------------------
-// // export const createNotificationChannel = async () => {
-// //   await notifee.createChannel({
-// //     id: 'default_v2',
-// //     name: 'Default Channel',
-// //     sound: 'notification_tone',
-// //     importance: AndroidImportance.HIGH,
-// //   });
-// // };
+    const app = getApp();
+    const messaging = getMessaging(app);
 
-// // // ------------------
-// // // 4. Display notification
-// // // ------------------
-// // export const displayNotification = async (title, body, data) => {
-// //   await notifee.displayNotification({
-// //     title,
-// //     body,
-// //     data,
-// //     android: {
-// //       channelId: 'default_v2',
-// //       pressAction: { id: 'default' },
-// //     },
-// //   });
-// // };
+    const fcmToken = await getToken(messaging);
 
-// // // ------------------
-// // // 5. Foreground listener
-// // // ------------------
-// // export const onMessageListener = () => {
-// //   const app = getApp();
-// //   const messagingInstance = getMessaging(app);
+    if (fcmToken) {
+      console.log('📱 iOS FCM Token:', fcmToken);
+      storeUserData('fcmToken', fcmToken);
+    } else {
+      console.log('⚠️ FCM token is empty');
+    }
+  } catch (error) {
+    console.log('❌ FCM token error:', error.message);
+  }
+};
 
-// //   onMessage(messagingInstance, async remoteMessage => {
-// //     console.log('📲 Foreground FCM:----------------', remoteMessage);
+/* ----------------------------------
+  3. Display notification (Foreground – iOS)
+----------------------------------- */
+export const displayNotification = async (title, body, data = {}) => {
+  await notifee.displayNotification({
+    title,
+    body,
+    data,
+    ios: {
+      foregroundPresentationOptions: {
+        badge: true,
+        sound: true,
+        banner: true,
+        list: true,
+      },
+    },
+  });
+};
 
-// //     // ✅ Only show notification if it is data-only message
-// //     if (remoteMessage.data && !remoteMessage.notification) {
-// //       await displayNotification(
-// //         remoteMessage.data?.title || 'New Notification',
-// //         remoteMessage.data?.body || '',
-// //         remoteMessage.data
-// //       );
-// //     }
-// //   });
+/* ----------------------------------
+  4. Foreground FCM listener
+----------------------------------- */
+export const onMessageListener = () => {
+  const app = getApp();
+  const messaging = getMessaging(app);
 
-// //   // Notification press in foreground
-// //   notifee.onForegroundEvent(({ type, detail }) => {
-// //     if (type === EventType.PRESS) {
-// //       const { screen, id } = detail.notification?.data || {};
-// //       if (screen) {
-// //         const item = { id };
-// //         console.log('📦 Foreground notification pressed:', item);
-// //         NavigationService.navigate(screen, { item });
-// //       } else {
-// //         console.warn('Notification me screen ka naam missing hai!');
-// //       }
-// //     }
-// //   });
-// // };
+  // Foreground message
+  onMessage(messaging, async remoteMessage => {
+    console.log('📲 Foreground iOS FCM:', remoteMessage);
 
-// // // ------------------
-// // // 6. Background & killed listener
-// // // ------------------
-// // export const notificationListeners = async () => {
-// //   const app = getApp();
-// //   const messagingInstance = getMessaging(app);
+    await displayNotification(
+      remoteMessage.notification?.title || 'New Notification',
+      remoteMessage.notification?.body || '',
+      remoteMessage.data,
+    );
+  });
 
-// //   // Background tap
-// //   onNotificationOpenedApp(messagingInstance, remoteMessage => {
-// //     const { screen, id } = remoteMessage?.data || {};
-// //     if (screen) {
-// //       const item = { id };
-// //       console.log('📦 Background notification pressed:', item);
-// //       NavigationService.navigate(screen, { item });
-// //     } else {
-// //       console.warn('Notification me screen ka naam missing hai!');
-// //     }
-// //   });
+  // Foreground notification press
+  notifee.onForegroundEvent(({type, detail}) => {
+    if (type === EventType.PRESS) {
+      const {screen, id} = detail.notification?.data || {};
+      NavigationService.navigate(
+        screen || 'LeadDetailsScreen',
+        {item: {id}},
+      );
+    }
+  });
+};
 
-// //   // Killed app
-// //   const initialMessage = await getInitialNotification(messagingInstance);
-// //   if (initialMessage) {
-// //     const { screen, id } = initialMessage.data || {};
-// //     if (screen) {
-// //       const item = { id };
-// //       console.log('📦 Killed app notification opened:', item);
-// //       setTimeout(() => {
-// //         NavigationService.navigate(screen, { item });
-// //       }, 1000); // wait for app mount
-// //     } else {
-// //       console.warn('Notification me screen ka naam missing hai!');
-// //     }
-// //   }
-// // };
+/* ----------------------------------
+  5. Background & Quit State Handling (iOS)
+----------------------------------- */
+export const notificationListeners = async () => {
+  const app = getApp();
+  const messaging = getMessaging(app);
+
+  // App opened from background
+  onNotificationOpenedApp(messaging, remoteMessage => {
+    console.log('📥 Opened from background:', remoteMessage);
+    const {screen, id} = remoteMessage?.data || {};
+    NavigationService.navigate(
+      screen || 'LeadDetailsScreen',
+      {item: {id}},
+    );
+  });
+
+  // App opened from killed state
+  const initialMessage = await getInitialNotification(messaging);
+  if (initialMessage) {
+    console.log('📥 Opened from killed state:', initialMessage);
+    const {screen, id} = initialMessage.data || {};
+    setTimeout(() => {
+      NavigationService.navigate(
+        screen || 'LeadDetailsScreen',
+        {item: {id}},
+      );
+    }, 800);
+  }
+};
