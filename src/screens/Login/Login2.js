@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -19,20 +19,22 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 
-import {useDispatch, useSelector} from 'react-redux';
-import {useUser} from '../contaxt/UserContext';
-import {_post, _get} from './../../api/apiClient';
+import { useDispatch, useSelector } from 'react-redux';
+import { useUser } from '../contaxt/UserContext';
+import { _post, _get } from './../../api/apiClient';
 import {
   storeUserData,
   getUserData,
 } from '../../components/EncryptedStorageUtil';
 import DeviceInfo from 'react-native-device-info';
-
+import messaging from '@react-native-firebase/messaging';
+import { getApp } from '@react-native-firebase/app';
+import Geolocation from 'react-native-geolocation-service';
 import Icon from 'react-native-vector-icons/Ionicons';
-import styles, {isTablet, isLandscape} from './Login2.styles';
+import styles, { isTablet, isLandscape } from './Login2.styles';
 
-export default function Login2({navigation, route}) {
-  const {email: prefillEmail, password: prefillPassword} = route.params || {};
+export default function Login2({ navigation, route }) {
+  const { email: prefillEmail, password: prefillPassword } = route.params || {};
   const scheme = useColorScheme();
   const [email, setEmail] = useState(prefillEmail || '');
   const [password, setPassword] = useState(prefillPassword || '');
@@ -57,15 +59,16 @@ export default function Login2({navigation, route}) {
   const [generalError, setGeneralError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [deviceName, setDeviceName] = useState(null);
+  const [isDeviceInfoReady, setIsDeviceInfoReady] = useState(false);
 
   const dispatch = useDispatch();
-  const {loading, error} = useSelector(state => state.auth);
+  const { loading, error } = useSelector(state => state.auth);
 
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const {setUser} = useUser();
+  const { setUser } = useUser();
 
   useEffect(() => {
     if (prefillEmail) setEmail(prefillEmail);
@@ -78,13 +81,104 @@ export default function Login2({navigation, route}) {
       try {
         const name = await DeviceInfo.getDeviceName();
         setDeviceName(name);
+        setIsDeviceInfoReady(true);
       } catch (error) {
         console.error('Error getting device name:', error);
         setDeviceName('Unknown Device');
+        setIsDeviceInfoReady(true);
       }
     };
     initialize();
   }, []);
+
+  const requestLocationPermission = async () => {
+    try {
+      // iOS ke liye permission status check karein
+      const authorizationStatus = await Geolocation.requestAuthorization('whenInUse');
+
+      if (authorizationStatus === 'granted') {
+        getCurrentLocation();
+      } else {
+        console.log('❌ Location permission denied on iOS');
+      }
+    } catch (error) {
+      console.error('❌ Error requesting location permission:', error);
+    }
+  };
+
+  const getCurrentLocation = () => {
+    if (!deviceName || !isDeviceInfoReady) {
+      console.log('⏳ Waiting for device info...');
+      return;
+    }
+
+    Geolocation.getCurrentPosition(
+      position => {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        postLocation(lat, lon);
+      },
+      error => {
+        console.error('❌ Geolocation error:', error.message);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 10000,
+        // iOS specific options
+        showLocationDialog: true,
+        forceRequestLocation: true,
+      },
+    );
+  };
+
+  const postLocation = async (lat, lon) => {
+    if (!deviceName || !isDeviceInfoReady) {
+      console.log('🚫 Device info not ready yet, skipping location post');
+      return;
+    }
+
+    const now = new Date();
+    const timestamp = `${now.getFullYear()}-${String(
+      now.getMonth() + 1,
+    ).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(
+      now.getHours(),
+    ).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(
+      now.getSeconds(),
+    ).padStart(2, '0')}`;
+
+    const data = {
+      latitude: lat,
+      longitude: lon,
+      device_name: deviceName,
+      u_time: timestamp,
+    };
+
+    console.log('📤 Posting Location Data:', data);
+
+    try {
+      const response = await _post('/user-location', data);
+      console.log('🌐 Location API Response:', response.data);
+      if (response.status === 200) {
+        console.log('✅ Location posted successfully from login page');
+      } else {
+        console.log('❌ Location post failed:', response?.data?.message);
+      }
+    } catch (error) {
+      if (error.response) {
+        console.error(
+          '🔥 Server Error:',
+          error.response.status,
+          error.response.data,
+        );
+      } else if (error.request) {
+        console.error('🚨 No response received:', error.request);
+      } else {
+        console.error('⚠️ Error setting up request:', error.message);
+      }
+    }
+  };
+
 
   // Clear all error messages
   const clearAllErrors = () => {
@@ -114,16 +208,38 @@ export default function Login2({navigation, route}) {
       });
     };
 
+    const fetchFcmToken = async () => {
+      try {
+        const app = getApp(); // 👈 app instance le lo
+        const token = await messaging(app).getToken(); // 👈 modular API
+
+        if (token) {
+          await storeUserData('fcmToken', token);
+          console.log('✅ FCM token saved:', token);
+        }
+      } catch (error) {
+        console.log('❌ Error fetching FCM token:', error);
+      }
+    };
+
     fetchDeviceInfo();
+    fetchFcmToken();
   }, []);
 
   const addDevice = async () => {
+
     try {
+      const fcmToken = await getUserData('fcmToken');
+      if (!fcmToken) {
+        console.log('❌ No FCM token found, skipping device registration');
+        return;
+      }
+
       const data = {
-        device_id: deviceInfo.deviceName,
+        device_id: fcmToken,
         device_name: deviceInfo.deviceName,
-        type: deviceInfo.deviceType,
-        env: 'dev',
+        type: 'ios',
+        env: 'production',
       };
 
       const response = await _post('/add-device', data);
@@ -166,7 +282,7 @@ export default function Login2({navigation, route}) {
     setIsLoading(true);
 
     try {
-      const response = await _post('/login', {email, password});
+      const response = await _post('/login', { email, password });
 
       if (response.status === 200) {
         // 🔹 Store token in EncryptedStorage
@@ -174,6 +290,11 @@ export default function Login2({navigation, route}) {
 
         // 🔹 Add device info after login
         await addDevice();
+
+        if (isDeviceInfoReady && deviceName) {
+          // 🔹 Request location permission and post location
+          await requestLocationPermission();
+        }
 
         // 🔹 Fetch user profile AFTER login
         const profileRes = await _get('/user-profile', {
@@ -192,12 +313,12 @@ export default function Login2({navigation, route}) {
 
         // 🔹 Success messages and navigation
         showSuccessMessage('Login Successful! Welcome back.');
-        
+
         // iOS doesn't have ToastAndroid, using Alert instead
         Alert.alert('Success', 'Login Successful! Welcome back.');
 
         setTimeout(() => {
-          const {usertype, plan, requested_plan} = response.data;
+          const { usertype, plan, requested_plan } = response.data;
 
           console.log(
             '➡️ UserType:',
@@ -252,7 +373,7 @@ export default function Login2({navigation, route}) {
     setIsLoading(true);
 
     try {
-      const response = await _post('/forget', {email});
+      const response = await _post('/forget', { email });
 
       if (response.status === 200) {
         showSuccessMessage(`OTP has been sent to ${email}`);
@@ -348,7 +469,7 @@ export default function Login2({navigation, route}) {
           error.response.data?.error || error.response.data?.message;
         setGeneralError(
           serverMessage ||
-            'Failed to reset password. Please check your inputs.',
+          'Failed to reset password. Please check your inputs.',
         );
       } else if (error.request) {
         setGeneralError('Please check your network connection.');
@@ -365,29 +486,29 @@ export default function Login2({navigation, route}) {
     }
   };
 
-  const ErrorText = ({error}) => {
+  const ErrorText = ({ error }) => {
     if (!error) return null;
     return <Text style={styles.errorText}>{error}</Text>;
   };
 
-  const SuccessText = ({message}) => {
+  const SuccessText = ({ message }) => {
     if (!message) return null;
     return <Text style={styles.successText}>{message}</Text>;
   };
 
   return (
-    <View style={{flex: 1, backgroundColor: 'transparent'}}>
+    <View style={{ flex: 1, backgroundColor: 'transparent' }}>
       <StatusBar
         barStyle="dark-content"
         translucent
         backgroundColor="transparent"
       />
       <KeyboardAvoidingView
-        style={{flex: 1}}
+        style={{ flex: 1 }}
         behavior="padding">
         <ImageBackground
           source={require('../../assets/images/loginback.jpeg')}
-          style={{flex: 1}}
+          style={{ flex: 1 }}
           resizeMode="cover">
           <LinearGradient
             colors={[
@@ -396,8 +517,8 @@ export default function Login2({navigation, route}) {
               '#02519F',
               '#02519F',
             ]}
-            start={{x: 0.5, y: 0}}
-            end={{x: 0.5, y: 1}}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
             style={StyleSheet.absoluteFillObject}
           />
 
@@ -537,8 +658,8 @@ export default function Login2({navigation, route}) {
                         disabled={isLoading}>
                         <LinearGradient
                           colors={['#0058aa', '#0058aa']}
-                          start={{x: 0, y: 0}}
-                          end={{x: 1, y: 0}}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
                           style={styles.buttonGradient}>
                           {isLoading ? (
                             <ActivityIndicator color="#fff" />
@@ -634,8 +755,8 @@ export default function Login2({navigation, route}) {
                           disabled={isLoading}>
                           <LinearGradient
                             colors={['#0058aa', '#0058aa']}
-                            start={{x: 0, y: 0}}
-                            end={{x: 1, y: 0}}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
                             style={styles.buttonGradient}>
                             {isLoading ? (
                               <ActivityIndicator color="#fff" />

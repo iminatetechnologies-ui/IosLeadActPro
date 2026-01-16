@@ -38,6 +38,7 @@ import { getUserType } from '../../utils/getUserType';
 import { getUserType1 } from '../../utils/getUserTypelogin.js';
 import { useIsFocused } from '@react-navigation/native';
 import HideHomeModal from '../Plans/hidehomemodal.jsx';
+import Geolocation from 'react-native-geolocation-service';
 
 export default function Home2({ navigation }) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -60,6 +61,8 @@ export default function Home2({ navigation }) {
   const noticeAllowed = useRef(false);
   const [loading, setLoading] = useState(false);
   const [isCardReady, setIsCardReady] = useState(false);
+  const [isDeviceInfoReady, setIsDeviceInfoReady] = useState(false);
+  const [deviceName, setDeviceName] = useState(null);
 
   const MAX_COUNT = 3;
 
@@ -149,6 +152,147 @@ export default function Home2({ navigation }) {
 
     init();
   }, []);
+
+  useEffect(() => {
+    const initialize = async () => {
+      try {
+        const name = await DeviceInfo.getDeviceName();
+        setDeviceName(name);
+        setIsDeviceInfoReady(true);
+      } catch (error) {
+        console.error('Error getting device name:', error);
+        setDeviceName('Unknown Device');
+        setIsDeviceInfoReady(true);
+      }
+    };
+
+    initialize();
+  }, []);
+
+  useEffect(() => {
+    let intervalId = null;
+
+    // ✅ Helper function for timestamp
+    const getFormattedTimestamp = () => {
+      const now = new Date();
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
+        2,
+        '0',
+      )}-${String(now.getDate()).padStart(2, '0')} ${String(
+        now.getHours(),
+      ).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(
+        now.getSeconds(),
+      ).padStart(2, '0')}`;
+    };
+
+    const requestLocationPermission = async () => {
+      try {
+        // iOS ke liye permission status check karein
+        const authorizationStatus = await Geolocation.requestAuthorization('whenInUse');
+  
+        if (authorizationStatus === 'granted') {
+          getCurrentLocation();
+        } else {
+          console.log('❌ Location permission denied on iOS');
+        }
+      } catch (error) {
+        console.error('❌ Error requesting location permission:', error);
+      }
+    };
+
+    const startLocationUpdates = () => {
+      if (!deviceName || !isDeviceInfoReady) {
+        console.log('⏳ Waiting for device info...');
+        return;
+      }
+
+      // console.log('🚀 Starting location updates...');
+
+      // ✅ First fetch immediately
+      getCurrentLocation('Initial Fetch');
+
+      // ✅ Repeat every 30 seconds
+      intervalId = setInterval(() => {
+        getCurrentLocation('Interval Fetch');
+      }, 300000);
+    };
+
+    const getCurrentLocation = (source = 'Manual') => {
+      // console.log(`📍 [${source}] Getting current location...`);
+      Geolocation.getCurrentPosition(
+        position => {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+          // console.log(`✅ [${source}] Location fetched:`, lat, lon);
+          postLocation(lat, lon);
+        },
+        error => {
+          console.error(`❌ [${source}] Geolocation error:`, error.message);
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
+      );
+    };
+
+    const postLocation = async (lat, lon) => {
+      if (!deviceName || !isDeviceInfoReady) {
+        console.log('🚫 Device info not ready yet, skipping location post');
+        return;
+      }
+
+      const timestamp = getFormattedTimestamp();
+
+      const data = {
+        latitude: lat,
+        longitude: lon,
+        device_name: deviceName,
+        u_time: timestamp,
+      };
+
+      // console.log('📤 Posting Location Data:', data);
+
+      try {
+        const response = await _post('/user-location', data);
+        if (response.status === 200) {
+          // console.log(`✅ [${timestamp}] Location posted successfully from home`,response);
+        } else {
+          console.log(
+            `❌ [${timestamp}] Location post failed:`,
+            response?.data?.message,
+          );
+        }
+      } catch (error) {
+        if (error.response) {
+          console.error(
+            `🔥 [${timestamp}] Server Error:`,
+            error.response.status,
+            error.response.data,
+          );
+        } else if (error.request) {
+          console.error(
+            `🚨 [${timestamp}] No response received`,
+            error.request,
+          );
+        } else {
+          console.error(
+            `⚠️ [${timestamp}] Error setting up request:`,
+            error.message,
+          );
+        }
+      }
+    };
+
+    if (isDeviceInfoReady && deviceName) {
+      requestLocationPermission();
+    }
+
+    // ✅ Cleanup
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        console.log('🛑 Location updates stopped');
+      }
+    };
+  }, [isDeviceInfoReady, deviceName]);
 
   useEffect(() => {
     getTotalLeads();
@@ -403,7 +547,7 @@ export default function Home2({ navigation }) {
             ]}
             style={styles.gradient}>
             {/* Use ScrollView to ensure proper rendering */}
-            <ScrollView 
+            <ScrollView
               style={styles.scrollView}
               contentContainerStyle={styles.scrollContent}
               showsVerticalScrollIndicator={false}
@@ -600,3 +744,5 @@ export default function Home2({ navigation }) {
     </View>
   );
 }
+
+

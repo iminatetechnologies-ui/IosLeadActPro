@@ -151,12 +151,12 @@ import {
 import notifee, {EventType} from '@notifee/react-native';
 import NavigationService from '../navigation/NavigationService';
 import {storeUserData} from '../components/EncryptedStorageUtil';
+import DeviceInfo from 'react-native-device-info';
 
 /* ----------------------------------
   Utils
 ----------------------------------- */
-const isIOS = Platform.OS === 'ios';
-const isSimulator = __DEV__ && Platform.OS === 'ios';
+const isSimulator = Platform.OS === 'ios' && DeviceInfo.isEmulatorSync();
 
 /* ----------------------------------
   1. Request Notification Permission (iOS)

@@ -18,11 +18,11 @@ import {getUserData} from './../../components/EncryptedStorageUtil';
 import {getUserType1} from '../../utils/getUserTypelogin';
 
 // 🔔 iOS FCM imports (COMMENTED)
-// import {
-//   requestUserPermission,
-//   onMessageListener,
-//   notificationListeners,
-// } from '../../utils/NotificationService';
+import {
+  requestUserPermission,
+  onMessageListener,
+  notificationListeners,
+} from '../../utils/NotificationService';
 
 const {width, height} = Dimensions.get('window');
 
@@ -38,11 +38,11 @@ const SplashScreen = ({navigation}) => {
       await delay(2000);
 
       // 🔔 iOS FCM setup (COMMENTED)
-      // if (Platform.OS === 'ios') {
-      //   await requestUserPermission();
-      //   onMessageListener();
-      //   await notificationListeners();
-      // }
+      if (Platform.OS === 'ios') {
+        await requestUserPermission();
+        onMessageListener();
+        await notificationListeners();
+      }
 
       const grantedFlag = await EncryptedStorage.getItem('permissionsGranted');
       if (grantedFlag === 'true') {

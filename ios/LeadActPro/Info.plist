@@ -27,6 +27,8 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<true/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSAppTransportSecurity</key>
@@ -46,6 +48,8 @@
 	<string>This app needs access to save photos and videos to your library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>This app needs access to your photo library to upload images and videos.</string>
+	<key>NSUserNotificationUsageDescription</key>
+	<string>This app uses notifications to keep you updated.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UIAppFonts</key>
@@ -61,10 +65,6 @@
 		<string>remote-notification</string>
 		<string>fetch</string>
 	</array>
-	<key>FirebaseAppDelegateProxyEnabled</key>
-	<true/>
-	<key>NSUserNotificationUsageDescription</key>
-	<string>This app uses notifications to keep you updated.</string>
 	<key>UILaunchStoryboardName</key>
 	<string></string>
 	<key>UIRequiredDeviceCapabilities</key>

@@ -2,29 +2,28 @@ import UIKit
 import React
 import React_RCTAppDelegate
 import ReactAppDependencyProvider
-// import FirebaseCore
-// import FirebaseMessaging
-// import UserNotifications
+import FirebaseCore
+import FirebaseMessaging
+import UserNotifications
 
 @main
-class AppDelegate: RCTAppDelegate
-// , UNUserNotificationCenterDelegate   // COMMENTED
-{
+class AppDelegate: RCTAppDelegate, UNUserNotificationCenterDelegate {
 
   override func application(
     _ application: UIApplication,
-    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil
+    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
 
-    // 🔥 Firebase init (COMMENTED)
-    // if FirebaseApp.app() == nil {
-    //   FirebaseApp.configure()
-    // }
+    // 🔥 Initialize Firebase
+    if FirebaseApp.app() == nil {
+      FirebaseApp.configure()
+    }
 
-    // 🔔 Notification delegate (COMMENTED)
-    // UNUserNotificationCenter.current().delegate = self
-    // application.registerForRemoteNotifications()
+    // 🔔 Push Notification setup
+    UNUserNotificationCenter.current().delegate = self
+    application.registerForRemoteNotifications()
 
+    // React Native setup
     self.moduleName = "LeadActPro"
     self.dependencyProvider = RCTAppDependencyProvider()
     self.initialProps = [:]
@@ -32,6 +31,7 @@ class AppDelegate: RCTAppDelegate
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
+  // 📦 React Native bundle
   override func bundleURL() -> URL! {
   #if DEBUG
     return RCTBundleURLProvider.sharedSettings()
@@ -41,29 +41,23 @@ class AppDelegate: RCTAppDelegate
   #endif
   }
 
-  // ✅ Pass APNs token to Firebase (COMMENTED)
-  /*
+  // ✅ APNs token → Firebase (DO NOT call super here)
   override func application(
     _ application: UIApplication,
     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
   ) {
     Messaging.messaging().apnsToken = deviceToken
-    super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
   }
-  */
 
-  // ❌ APNs failure log (OPTIONAL – COMMENTED)
-  /*
+  // ❌ APNs registration failure
   override func application(
     _ application: UIApplication,
     didFailToRegisterForRemoteNotificationsWithError error: Error
   ) {
     print("❌ APNs registration failed:", error)
   }
-  */
 
-  // 🔔 Foreground notification handling (COMMENTED)
-  /*
+  // 🔔 Show notification while app is in foreground
   func userNotificationCenter(
     _ center: UNUserNotificationCenter,
     willPresent notification: UNNotification,
@@ -72,5 +66,4 @@ class AppDelegate: RCTAppDelegate
   ) {
     completionHandler([.banner, .sound, .badge])
   }
-  */
 }
